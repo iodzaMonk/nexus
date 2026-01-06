@@ -8,6 +8,7 @@ export const postInclude = {
         authorOwner: true,
       },
     },
+    likes: true,
   },
 } satisfies Prisma.PostDefaultArgs;
 

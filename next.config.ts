@@ -9,8 +9,12 @@ const nextConfig: NextConfig = {
 
   images: {
     remotePatterns: [
-      new URL('https://pyoghzghwkpgiqbpbphp.supabase.co/**'),
-  ]
+      {
+        protocol: 'https',
+        hostname: 'pyoghzghwkpgiqbpbphp.supabase.co',
+        pathname: '/**',
+      },
+    ]
   }
 };
 

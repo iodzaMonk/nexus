@@ -14,7 +14,8 @@ export async function getPosts() {
         orderBy: {
           createdAt: 'asc'
         }
-      }
+      },
+      likes: true
     }
   })
 }

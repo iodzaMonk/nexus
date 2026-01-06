@@ -1,26 +1,20 @@
-import { uploadPost } from "./actions";
-import { getPosts } from '@/app/fetchPosts';
-import PostSection from "./components/PostSection";
-
+import { Suspense } from "react";
+import PostFeed from "@/components/Post/PostFeed";
+import PostSkeleton from "@/components/Post/PostSkeleton";
+import AuthTab from "@/components/Auth/AuthForm";
+import { cookies } from "next/headers";
 
 export default async function Home() {
-
-  const posts = await getPosts();
+  const session = (await cookies()).get("session");
 
   return (
     <main className="p-10 flex flex-col items-center">
       <h1 className=" text-2xl font-bold mb-4">Nexus</h1>
 
-      <form action={uploadPost} className="flex flex-col gap-4 max-w-sm">
-        <input type="file" name="image" accept="image/*" required />
-
-        <input type="text" name="caption" placeholder="Write a caption..." className="border p-2 border-white" />
-
-        <button type="submit" className="bg-brand-hlg p-2 rounded">Upload Post</button>
-      </form>
-
-     <PostSection posts={posts}/> 
-
+      {!session && <AuthTab />}
+      <Suspense fallback={<PostSkeleton />}>
+        <PostFeed />
+      </Suspense>
     </main>
   );
 }
