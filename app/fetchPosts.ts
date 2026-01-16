@@ -19,3 +19,28 @@ export async function getPosts() {
     }
   })
 }
+
+export async function getVideos() {
+  return await prisma.post.findMany({
+    where: {
+      videoUrl: {
+        not: null
+      }
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    include: {
+      author: true,
+      comments: {
+        include: {
+          authorOwner: true
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      },
+      likes: true
+    }
+  })
+}

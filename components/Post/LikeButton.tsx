@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Toggle } from "../ui/toggle";
 import { HeartIcon } from "lucide-react";
-import { toggleLike } from "@/app/actions";
+import { toggleLike } from "@/app/actions/post";
 
 export default function LikeButton({
   postId,

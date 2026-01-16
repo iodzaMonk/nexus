@@ -1,5 +1,5 @@
 "use client";
-import { createComment } from "@/app/actions";
+import { createComment } from "@/app/actions/post";
 
 interface CommentFormProps {
   postId: string;

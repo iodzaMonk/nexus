@@ -56,7 +56,7 @@ export async function AppSidebar() {
     },
   ];
   return (
-    <Sidebar>
+    <Sidebar className="hidden md:flex">
       <SidebarContent>
         <SidebarGroup className="my-20 ml-5 w-auto">
           <SidebarGroupLabel className="text-4xl mb-5 text-white">

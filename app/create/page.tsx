@@ -1,18 +1,27 @@
 "use client";
 import { ChangeEvent, useState, FormEvent } from "react";
-import { uploadPost } from "../actions";
+import { uploadPost } from "@/app/actions/post";
 import { ImagePlus } from "lucide-react";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 
 export default function CreatePost() {
-  const [imageURL, setImageURL] = useState("");
+  const [fileURL, setFileURL] = useState("");
+  const [fileType, setFileType] = useState<"image" | "video" | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function loadImage(e: ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files) return Error("No image was uploaded");
-    const url = URL.createObjectURL(e.target.files[0]);
-    setImageURL(url);
+  function loadFile(e: ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || !e.target.files[0]) return;
+    console.log(e.target.files[0].size);
+    if (e.target.files[0].size > 50000000) {
+      setError("Max upload size is 50mb");
+      return;
+    }
+    const file = e.target.files[0];
+    const url = URL.createObjectURL(file);
+    setFileURL(url);
+    setFileType(file.type.startsWith("video/") ? "video" : "image");
   }
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -25,38 +34,50 @@ export default function CreatePost() {
     redirect("/");
   }
   return (
-    <div className="flex h-full w-full items-center justify-center p-6">
+    <div className="flex h-full w-full items-center justify-center p-4 md:p-6 min-h-[calc(100vh-10rem)]">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-brand-mid p-8 shadow-2xl backdrop-blur-sm">
         <h1 className="mb-8 text-center text-3xl font-bold tracking-tight text-white">
           Create Post
         </h1>
 
         <form onSubmit={submit} className="flex flex-col gap-6">
-          {/* Image Upload Area */}
+          {/* File Upload Area */}
           <div className="group relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/20 bg-black/20 transition-all hover:border-brand-hlg hover:bg-black/30">
             <input
               type="file"
-              name="image"
-              accept="image/*"
-              onChange={loadImage}
+              name="file"
+              accept="image/*, video/*"
+              onChange={loadFile}
               required
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 z-10"
             />
-            {imageURL ? (
+            {fileURL && fileType === "image" ? (
               <Image
-                src={imageURL}
+                src={fileURL}
                 width={1200}
                 height={1200}
                 alt="Preview Image"
-                className="object-cover w-full h-full"
+                className="object-cover w-full h-full rounded-xl"
+              />
+            ) : fileURL && fileType === "video" ? (
+              <video
+                src={fileURL}
+                className="object-cover w-full h-full rounded-xl"
+                autoPlay
+                muted
+                loop
+                controls
               />
             ) : (
               <div className="flex flex-col items-center gap-2 text-white/50 transition-colors group-hover:text-brand-hlg">
                 <ImagePlus size={48} />
-                <span className="text-sm font-medium">Select an image</span>
+                <span className="text-sm font-medium">
+                  Select image or video
+                </span>
               </div>
             )}
           </div>
+          {error ? <p className="text-red-500">{error}</p> : null}
 
           {/* Caption Input */}
           <div className="space-y-2">

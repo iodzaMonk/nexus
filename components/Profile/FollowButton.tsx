@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "../ui/button";
-import { toggleFollow } from "@/app/actions";
+import { toggleFollow } from "@/app/actions/user";
 
 export default function FollowButton({
   initialIsFollowing,

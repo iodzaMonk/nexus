@@ -2,19 +2,34 @@ import { Suspense } from "react";
 import PostFeed from "@/components/Post/PostFeed";
 import PostSkeleton from "@/components/Post/PostSkeleton";
 import AuthTab from "@/components/Auth/AuthForm";
-import { cookies } from "next/headers";
+import { getCurrentUser } from "@/lib/user";
+
+import RecommendedUsers from "@/components/RecommendedUsers";
 
 export default async function Home() {
-  const session = (await cookies()).get("session");
+  const user = await getCurrentUser();
 
   return (
-    <main className="p-10 flex flex-col items-center">
-      <h1 className=" text-2xl font-bold mb-4">Nexus</h1>
+    <div className="flex w-full justify-center">
+      <main className="p-4 md:p-10 flex flex-col items-center w-full max-w-xl">
+        <h1 className=" text-2xl font-bold mb-4">Nexus</h1>
 
-      {!session && <AuthTab />}
-      <Suspense fallback={<PostSkeleton />}>
-        <PostFeed />
-      </Suspense>
-    </main>
+        {!user && <AuthTab />}
+
+        {/* Mobile Recommended Users */}
+        <div className="w-full xl:hidden mb-6">
+          <RecommendedUsers />
+        </div>
+
+        <Suspense fallback={<PostSkeleton />}>
+          <PostFeed />
+        </Suspense>
+      </main>
+
+      {/* Right Sidebar for Recommended Users - only on Home */}
+      <div className="hidden xl:flex flex-col w-80 p-6 border-l border-white/10 h-screen sticky top-0">
+        <RecommendedUsers />
+      </div>
+    </div>
   );
 }
