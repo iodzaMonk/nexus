@@ -8,11 +8,13 @@ import { User, Message, Conversation } from "@/app/generated/prisma/client";
 import { useSocket } from "../SocketProvider";
 import { formatMessageTime } from "@/lib/dateUtils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getConversations } from "@/app/actions/chat";
 
 // Define the shape including relations
 type ConversationWithDetails = Conversation & {
   participants: User[];
   messages: Message[];
+  unreadCount: number;
 };
 
 interface ConversationListProps {
@@ -30,10 +32,7 @@ export default function ConversationList({
   const { data: conversations } = useQuery({
     queryKey: ["conversations"],
     initialData: initialConversations,
-    // We set a dummy queryFn because it is valid to rely solely on initialData + Sockets
-    // However, TanStack Query requires a function to be defined.
-    // In a real app, this would be `fetch('/api/conversations')`.
-    queryFn: () => initialConversations,
+    queryFn: () => getConversations(),
     staleTime: Infinity, // Prevent auto-refetching since we rely on sockets
   });
 
@@ -46,38 +45,24 @@ export default function ConversationList({
     if (!socket) return;
 
     const joinRooms = () => {
-      console.log(
-        "ConversationList: Attempting to join rooms. Conversations:",
-        initialConversations.length,
-        "Socket ID:",
-        socket.id
-      );
       // Join all conversation rooms to listen for updates
       initialConversations.forEach((c) => {
-        console.log("ConversationList: Joining conversation room:", c.id);
         socket.emit("join", c.id);
       });
-      console.log("ConversationList: Joining user room:", currentUser.id);
       // Also join our own user room if backend supports it for new chats
       socket.emit("join", currentUser.id);
     };
 
     // If already connected, join immediately
     if (socket.connected) {
-      console.log(
-        "ConversationList: Socket already connected, joining immediately."
-      );
       joinRooms();
-    } else {
-      console.log(
-        "ConversationList: Socket NOT connected yet. Waiting for event."
-      );
     }
 
     // Also listen for connect event in case of reconnection
     socket.on("connect", joinRooms);
 
     const handleNewMessage = (newMessage: Message) => {
+      console.log("ConversationList: Received newMessage", newMessage);
       queryClient.setQueryData<ConversationWithDetails[]>(
         ["conversations"],
         (oldData) => {
@@ -86,8 +71,10 @@ export default function ConversationList({
           const convoIndex = oldData.findIndex(
             (c) => c.id === newMessage.conversationId
           );
+          console.log("ConversationList: Found convoIndex", convoIndex);
 
           if (convoIndex === -1) {
+            console.log("ConversationList: Convo not found, refreshing");
             router.refresh();
             return oldData;
           }
@@ -96,12 +83,18 @@ export default function ConversationList({
             ...oldData[convoIndex],
             messages: [newMessage],
             updatedAt: new Date(),
+            // Increment unread count if it's not from us
+            unreadCount:
+              newMessage.userId !== currentUser.id
+                ? (oldData[convoIndex].unreadCount || 0) + 1
+                : oldData[convoIndex].unreadCount,
           };
 
           const otherConvos = oldData.filter(
             (c) => c.id !== newMessage.conversationId
           );
 
+          console.log("ConversationList: Reordering conversations");
           return [updatedConvo, ...otherConvos];
         }
       );
@@ -160,10 +153,17 @@ export default function ConversationList({
                         </span>
                       </div>
                     )}
+
+                    {/* Online Dot */}
                     {otherParticipant &&
                       onlineUsers.has(otherParticipant.id) && (
                         <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full ring-1 ring-background"></span>
                       )}
+
+                    {/* Unread Pulse on Avatar - THE ORIGINAL WAY */}
+                    {convo.unreadCount > 0 && (
+                      <span className="absolute inset-0 rounded-full ring-2 ring-blue-500 shadow-[0_0_10px_#3b82f6] animate-pulse pointer-events-none"></span>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0 text-left">
@@ -175,12 +175,25 @@ export default function ConversationList({
                       </span>
 
                       {lastMessage && (
-                        <span className="text-[10px] text-muted-foreground ml-1">
+                        <span
+                          className={`text-[10px] ml-1 ${
+                            convo.unreadCount > 0
+                              ? "text-blue-400 font-bold"
+                              : "text-muted-foreground"
+                          }`}
+                          suppressHydrationWarning
+                        >
                           {formatMessageTime(lastMessage.createdAt)}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate opacity-80 group-hover:opacity-100">
+                    <p
+                      className={`text-xs truncate ${
+                        convo.unreadCount > 0
+                          ? "text-white font-semibold"
+                          : "text-muted-foreground opacity-80 group-hover:opacity-100"
+                      }`}
+                    >
                       {lastMessage ? (
                         lastMessage.content ||
                         (lastMessage.imageUrl

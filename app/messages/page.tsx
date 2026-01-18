@@ -1,7 +1,7 @@
 import { MessageCircle } from "lucide-react";
-import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/user";
 import ConversationList from "@/components/Messages/ConversationList";
+import { getConversations } from "@/app/actions/chat";
 
 export default async function MessagesPage() {
   const currentUser = await getCurrentUser();
@@ -10,27 +10,7 @@ export default async function MessagesPage() {
     return <div>Not authenticated</div>;
   }
 
-  const conversations = await prisma.conversation.findMany({
-    where: {
-      participants: {
-        some: {
-          id: currentUser.id,
-        },
-      },
-    },
-    include: {
-      participants: true,
-      messages: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-        take: 1,
-      },
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-  });
+  const conversations = await getConversations();
 
   return (
     <>

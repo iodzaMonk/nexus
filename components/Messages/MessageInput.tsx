@@ -7,6 +7,7 @@ import { Message } from "@/app/generated/prisma/client";
 import { AnimatePresence, motion } from "motion/react";
 import { Reply, X, Send } from "lucide-react";
 import Image from "next/image";
+import { useEffect } from "react";
 
 interface MessageInputProps {
   onSend: (content: string, image: File | null) => Promise<void>;
@@ -23,7 +24,31 @@ export function MessageInput({
   const [image, setImage] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is already typing in an input or textarea
+      if (
+        document.activeElement instanceof HTMLInputElement ||
+        document.activeElement instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      // Ignore modifier keys (Cmd, Ctrl, Alt)
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // If it's a printable character (length 1), focus the input
+      if (e.key.length === 1) {
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   const handleSend = async () => {
     if ((!content.trim() && !image) || isLoading) return;
@@ -37,6 +62,9 @@ export function MessageInput({
       console.error("Failed to send message:", error);
     } finally {
       setIsLoading(false);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 10);
     }
   };
 
@@ -149,6 +177,7 @@ export function MessageInput({
         </Button>
         <Input
           value={content}
+          ref={inputRef}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Send message"

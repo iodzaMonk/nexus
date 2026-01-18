@@ -1,27 +1,15 @@
-import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/user";
+import { User } from "@/app/generated/prisma/client";
 import UserCard from "./User/UserCard";
 
 interface RecommendedUsersProps {
   className?: string;
+  users: User[];
 }
 
-export default async function RecommendedUsers({
+export default function RecommendedUsers({
   className = "",
+  users,
 }: RecommendedUsersProps) {
-  const currentUser = await getCurrentUser();
-
-  // Fetch 5 random users (excluding the current user if logged in)
-  const users = await prisma.user.findMany({
-    where: {
-      AND: [{ id: { not: currentUser?.id } }],
-    },
-    take: 5,
-    orderBy: {
-      id: "desc",
-    },
-  });
-
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
       <h3 className="text-lg font-semibold px-2">Recommended</h3>

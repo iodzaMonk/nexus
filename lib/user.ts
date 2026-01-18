@@ -23,6 +23,19 @@ export async function getUser(username: string, viewerId?: string) {
                 where: {followerId: viewerId}
             } : false
         }
-    }) 
+    }); 
     return user;
+}
+
+export async function getRecommendedUsers(currentUserId?: string) {
+    const users = await prisma.user.findMany({
+        where: {
+            AND: [{ id: { not: currentUserId } }],
+        },
+        take: 5,
+        orderBy: {
+            id: "desc",
+        },
+    });
+    return users;
 }

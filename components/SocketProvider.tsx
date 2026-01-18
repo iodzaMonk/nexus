@@ -1,12 +1,16 @@
 "use client";
-import { useEffect, createContext, useContext, useState } from "react";
+import { useEffect, createContext, useContext, useState, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { io, Socket } from "socket.io-client";
+import { toast } from "sonner";
+import { Message, User } from "@/app/generated/prisma/client";
 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
   onlineUsers: Set<string>;
   lastSeenUpdates: Map<string, Date>;
+  unreadCount: number;
 }
 
 const SocketContext = createContext<SocketContextType>({
@@ -14,6 +18,7 @@ const SocketContext = createContext<SocketContextType>({
   isConnected: false,
   onlineUsers: new Set(),
   lastSeenUpdates: new Map(),
+  unreadCount: 0,
 });
 
 export default function SocketProvider({
@@ -23,16 +28,33 @@ export default function SocketProvider({
   children: React.ReactNode;
   currentUser?: { id: string };
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+
+  // Keep ref in sync without triggering socket re-connects
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  const processedMessageIds = useRef(new Set<string>());
+
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [lastSeenUpdates, setLastSeenUpdates] = useState<Map<string, Date>>(
     new Map()
   );
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     console.log("SocketProvider: Initializing socket...");
-    const socketInstance = io();
+    // Auto-detects URL, but forces WSS if page is HTTPS
+    const socketInstance = io(undefined, {
+      secure: true,
+      rejectUnauthorized: false, // In case of self-signed dev certs, though we use LetsEncrypt
+      transports: ["websocket", "polling"], // Try websocket first
+    });
 
     socketInstance.on("connect", () => {
       setIsConnected(true);
@@ -41,35 +63,26 @@ export default function SocketProvider({
         socketInstance.id
       );
       if (currentUser?.id) {
-        console.log(
-          "SocketProvider: Emitting register for user:",
-          currentUser.id
-        );
         socketInstance.emit("register", currentUser.id);
       } else {
-        console.warn(
-          "SocketProvider: Connected but no currentUser.id to register"
-        );
+        // No user to register
       }
     });
 
     socketInstance.on("disconnect", (reason) => {
       setIsConnected(false);
-      console.log("SocketProvider: Global Socket Disconnected:", reason);
     });
 
     socketInstance.on("connect_error", (error) => {
-      console.log("SocketProvider: Connection Error:", error);
+      // Handle connection error
     });
 
     // Presence events
     socketInstance.on("onlineUsers", (users: string[]) => {
-      console.log("SocketProvider: Received onlineUsers list:", users);
       setOnlineUsers(new Set(users));
     });
 
     socketInstance.on("userOnline", (userId: string) => {
-      console.log("SocketProvider: Received userOnline:", userId);
       setOnlineUsers((prev) => {
         const newSet = new Set(prev);
         newSet.add(userId);
@@ -93,19 +106,79 @@ export default function SocketProvider({
       }
     );
 
+    socketInstance.on("newMessage", (message: Message & { sender: User }) => {
+      // Deduplicate: If we already processed this message ID, ignore it
+      if (processedMessageIds.current.has(message.id)) return;
+      processedMessageIds.current.add(message.id);
+      setTimeout(() => processedMessageIds.current.delete(message.id), 5000);
+
+      // Only increment if message is not from me
+      if (currentUser?.id && message.userId !== currentUser.id) {
+        setUnreadCount((prev) => prev + 1);
+
+        // Don't show toast if we are already in the conversation
+        const isCurrentConversation =
+          pathnameRef.current === `/messages/${message.conversationId}`;
+        if (isCurrentConversation) return;
+
+        toast(
+          `New message from ${
+            message.sender?.name || message.sender?.username || "Someone"
+          }`,
+          {
+            description:
+              message.content ||
+              (message.imageUrl ? "Sent an image" : "Sent a video"),
+            action: {
+              label: "View",
+              onClick: () => router.push(`/messages/${message.conversationId}`),
+            },
+          }
+        );
+      }
+    });
+
+    socketInstance.on("messageRead", () => {
+      // When messages are read, re-fetch the count to be accurate
+      import("@/app/actions/chat").then(({ getUnreadCount }) => {
+        getUnreadCount().then(setUnreadCount);
+      });
+    });
+
     setTimeout(() => {
       setSocket(socketInstance);
     }, 0);
 
+    // Initial fetch
+    if (currentUser?.id) {
+      console.log(
+        "SocketProvider: Fetching unread count for user",
+        currentUser.id
+      );
+      import("@/app/actions/chat").then(({ getUnreadCount }) => {
+        getUnreadCount()
+          .then((count) => {
+            console.log("SocketProvider: Unread count fetched:", count);
+            setUnreadCount(count);
+          })
+          .catch((err) =>
+            console.error("SocketProvider: Failed to fetch count", err)
+          );
+      });
+    } else {
+      console.log(
+        "SocketProvider: No current user, skipping unread count fetch"
+      );
+    }
+
     return () => {
-      console.log("SocketProvider: Cleaning up socket...");
       socketInstance.disconnect();
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, router]);
 
   return (
     <SocketContext.Provider
-      value={{ socket, isConnected, onlineUsers, lastSeenUpdates }}
+      value={{ socket, isConnected, onlineUsers, lastSeenUpdates, unreadCount }}
     >
       {children}
     </SocketContext.Provider>

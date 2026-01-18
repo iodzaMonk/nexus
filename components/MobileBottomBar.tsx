@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { UnreadBadge } from "./UnreadBadge";
 
 export function MobileBottomBar({ username }: { username?: string }) {
   const pathname = usePathname();
@@ -60,13 +61,16 @@ export function MobileBottomBar({ username }: { username?: string }) {
                 isActive ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              <item.icon
-                className={`w-6 h-6 mb-1 ${
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground group-hover:text-primary"
-                }`}
-              />
+              <div className="relative">
+                <item.icon
+                  className={`w-6 h-6 mb-1 ${
+                    isActive
+                      ? "text-primary"
+                      : "text-muted-foreground group-hover:text-primary"
+                  }`}
+                />
+                {item.title === "Messages" && <UnreadBadge />}
+              </div>
               <span className="text-xs">{item.title}</span>
             </Link>
           );

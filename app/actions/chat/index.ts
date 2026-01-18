@@ -93,8 +93,15 @@ export async function sendMessage(conversationId: string, formData: FormData) {
         videoUrl: videoUrl
     },
     include: {
-        replyTo: true
+        replyTo: true,
+        sender: true
     }
+   });
+
+   // Update conversation timestamp to move it to top of list
+   await prisma.conversation.update({
+       where: { id: conversationId },
+       data: { updatedAt: new Date() }
    });
 
    return newMessage;
@@ -114,4 +121,62 @@ export async function getMessages(conversationId: string) {
         }
     })
     return messages;
+}
+
+
+export async function getUnreadCount() {
+    // noStore();
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return 0;
+
+    const count = await prisma.message.count({
+        where: {
+            seen: null,
+            userId: { not: currentUser.id },
+            conversation: {
+                participants: {
+                    some: { id: currentUser.id }
+                }
+            }
+        }
+    });
+
+    return count;
+}
+
+export async function getConversations() {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return [];
+
+    const conversations = await prisma.conversation.findMany({
+        where: {
+            participants: {
+                some: { id: currentUser.id }
+            }
+        },
+        include: {
+            participants: true,
+            messages: {
+                orderBy: { updatedAt: "desc" },
+                take: 1
+            },
+            _count: {
+                select: {
+                    messages: {
+                        where: {
+                            seen: null,
+                            userId: { not: currentUser.id }
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: { updatedAt: "desc" }
+    });
+    
+    // Flatten the structure for easier consumption
+    return conversations.map(c => ({
+        ...c,
+        unreadCount: c._count.messages
+    }));
 }

@@ -27,7 +27,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 
 const connectionString = `${process.env.DATABASE_URL}`;
 
-const pool = new Pool({ connectionString });
+const pool = new Pool({ connectionString, max: 1 });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
@@ -53,15 +53,15 @@ io.on('connection', (socket) => {
         // Tag socket with userId
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (socket as any).userId = userId;
-        console.log(`Server: User registered: ${userId} on socket ${socket.id}`);
         
+        socket.join(userId);
+
         if (!onlineUsers.has(userId)) {
             onlineUsers.set(userId, new Set());
             // Broadcast that this user is now online
-            console.log(`Server: Broadcasting userOnline for ${userId}`);
             io.emit('userOnline', userId);
         } else {
-             console.log(`Server: User ${userId} already online, adding socket`);
+             // User already online
         }
         onlineUsers.get(userId)?.add(socket.id);
         
@@ -69,7 +69,9 @@ io.on('connection', (socket) => {
 
     socket.on('sendMessage', (data) => {
         io.to(data.conversationId).emit('newMessage', data);
-        
+        if (data.recipientId) {
+            io.to(data.recipientId).emit('newMessage', data);
+        }
     });
 
     socket.on('readMessage', async (message) => {
@@ -110,7 +112,6 @@ io.on('connection', (socket) => {
                     const lastSeen = new Date();
                     
                     // Emit immediately for UI responsiveness
-                    console.log(`Server: User ${userId} went offline. Emitting userOffline.`);
                     io.emit('userOffline', { userId, lastSeen });
 
                     // Update DB asynchronously
@@ -119,9 +120,8 @@ io.on('connection', (socket) => {
                             where: { id: userId },
                             data: { lastSeen }
                         });
-                        console.log(`Server: DB updated lastSeen for ${userId}`);
                     } catch (e) {
-                        console.error(`Server: Failed to update lastSeen for ${userId}:`, e);
+                         // silently fail in production logs
                     }
                 }
             }

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,19 +39,20 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}
       >
-        <SidebarProvider>
-          <SessionManager
-            hasUser={!!user}
-            hasSessionCookie={!!(await cookies()).get("session")}
-          />
-          <AppSidebar />
-          <SocketProvider currentUser={user || undefined}>
+        <SocketProvider currentUser={user || undefined}>
+          <SidebarProvider>
+            <SessionManager
+              hasUser={!!user}
+              hasSessionCookie={!!(await cookies()).get("session")}
+            />
+            <AppSidebar />
             <main className="flex justify-center w-full pb-16 md:pb-0">
               <Providers>{children}</Providers>
             </main>
-          </SocketProvider>
-          <MobileBottomBar username={user?.username} />
-        </SidebarProvider>
+            <MobileBottomBar username={user?.username} />
+          </SidebarProvider>
+          <Toaster />
+        </SocketProvider>
       </body>
     </html>
   );

@@ -14,8 +14,13 @@ const nextConfig: NextConfig = {
         hostname: 'pyoghzghwkpgiqbpbphp.supabase.co',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
     ]
-  }
+  },
+  reactStrictMode: false,
 };
 
 export default nextConfig;

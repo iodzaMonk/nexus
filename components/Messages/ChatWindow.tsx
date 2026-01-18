@@ -141,7 +141,10 @@ export function ChatWindow({
       // Wait for image upload to complete before emitting so others see the image
       if (socket) {
         console.log("Emitting socket message:", newMessage);
-        socket.emit("sendMessage", newMessage);
+        socket.emit("sendMessage", {
+          ...newMessage,
+          recipientId: otherParticipant?.id,
+        });
       } else {
         console.warn("Socket not available for emit");
       }
@@ -153,7 +156,7 @@ export function ChatWindow({
   };
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full pb-16 md:pb-0">
       <ConversationHeader participant={otherParticipant} />
 
       {/* We pass the LOCAL messages state to the list */}

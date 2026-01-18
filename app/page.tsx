@@ -2,12 +2,13 @@ import { Suspense } from "react";
 import PostFeed from "@/components/Post/PostFeed";
 import PostSkeleton from "@/components/Post/PostSkeleton";
 import AuthTab from "@/components/Auth/AuthForm";
-import { getCurrentUser } from "@/lib/user";
+import { getCurrentUser, getRecommendedUsers } from "@/lib/user";
 
 import RecommendedUsers from "@/components/RecommendedUsers";
 
 export default async function Home() {
   const user = await getCurrentUser();
+  const recommendedUsers = await getRecommendedUsers(user?.id);
 
   return (
     <div className="flex w-full justify-center">
@@ -18,7 +19,7 @@ export default async function Home() {
 
         {/* Mobile Recommended Users */}
         <div className="w-full xl:hidden mb-6">
-          <RecommendedUsers />
+          <RecommendedUsers users={recommendedUsers} />
         </div>
 
         <Suspense fallback={<PostSkeleton />}>
@@ -28,7 +29,7 @@ export default async function Home() {
 
       {/* Right Sidebar for Recommended Users - only on Home */}
       <div className="hidden xl:flex flex-col w-80 p-6 border-l border-white/10 h-screen sticky top-0">
-        <RecommendedUsers />
+        <RecommendedUsers users={recommendedUsers} />
       </div>
     </div>
   );

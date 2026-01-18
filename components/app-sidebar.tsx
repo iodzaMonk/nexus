@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { getCurrentUser } from "@/lib/user";
+import { SidebarUnreadBadge } from "./SidebarUnreadBadge";
 
 export async function AppSidebar() {
   const user = await getCurrentUser();
@@ -67,11 +68,15 @@ export async function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <a
+                      href={item.url}
+                      className="relative flex items-center gap-2"
+                    >
                       <item.icon />
                       <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>
+                  {item.title === "Messages" && <SidebarUnreadBadge />}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

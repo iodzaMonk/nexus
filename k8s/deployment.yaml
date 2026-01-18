@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-deployment
+spec:
+  replicas: 1 # Run 1 copy (More stable on 1GB RAM)
+  selector:
+    matchLabels:
+      app: nexus
+  template:
+    metadata:
+      labels:
+        app: nexus
+    spec:
+      containers:
+        - name: nexus
+          image: iodza/nexus:latest # Pull from Docker Hub
+          imagePullPolicy: Always # Always check for updates
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: nexus-secrets # We would create this secret in K8s
